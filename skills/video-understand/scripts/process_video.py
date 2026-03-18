@@ -631,41 +631,54 @@ def process_with_ffmpeg(
 # === Provider-specific processors ===
 
 def process_with_gemini(source: str, prompt: str, model: str = None, is_url: bool = False, verbose: bool = True) -> dict:
-    """Process video with Google Gemini."""
-    import google.generativeai as genai
+    """Process video with Google Gemini using the google.genai SDK."""
+    from google import genai
+    from google.genai import types
+    import time
 
     model_name = model or DEFAULT_MODELS["gemini"]
     log(f"Processing with Gemini ({model_name})...", verbose)
 
     api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    genai.configure(api_key=api_key)
-
-    genai_model = genai.GenerativeModel(model_name)
+    client = genai.Client(api_key=api_key)
 
     if is_url and is_youtube_url(source):
-        # Gemini can handle YouTube URLs directly
         log("Sending YouTube URL directly to Gemini...", verbose)
-        response = genai_model.generate_content([
-            prompt,
-            {"video_url": source}
-        ])
+        response = client.models.generate_content(
+            model=model_name,
+            contents=[
+                types.Content(
+                    parts=[
+                        types.Part.from_uri(file_uri=source, mime_type="video/mp4"),
+                        types.Part.from_text(text=prompt),
+                    ]
+                )
+            ],
+        )
     else:
-        # Upload local file
         log("Uploading video to Gemini...", verbose)
-        video_file = genai.upload_file(source)
+        video_file = client.files.upload(file=source)
 
-        # Wait for processing
-        import time
-        while video_file.state.name == "PROCESSING":
+        while video_file.state.value == "PROCESSING":
             log("Waiting for Gemini to process video...", verbose)
             time.sleep(2)
-            video_file = genai.get_file(video_file.name)
+            video_file = client.files.get(name=video_file.name)
 
-        if video_file.state.name == "FAILED":
-            raise RuntimeError(f"Video processing failed: {video_file.state.name}")
+        if video_file.state.value == "FAILED":
+            raise RuntimeError(f"Video processing failed: {video_file.state.value}")
 
         log("Generating response...", verbose)
-        response = genai_model.generate_content([prompt, video_file])
+        response = client.models.generate_content(
+            model=model_name,
+            contents=[
+                types.Content(
+                    parts=[
+                        types.Part.from_uri(file_uri=video_file.uri, mime_type=video_file.mime_type),
+                        types.Part.from_text(text=prompt),
+                    ]
+                )
+            ],
+        )
 
     return {
         "provider": "gemini",

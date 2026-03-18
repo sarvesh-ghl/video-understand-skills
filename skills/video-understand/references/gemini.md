@@ -5,7 +5,7 @@ Google's Gemini models provide native video understanding with both visual and a
 ## Setup
 
 ```bash
-pip install google-generativeai
+pip install google-genai
 export GEMINI_API_KEY="your-api-key"
 # OR
 export GOOGLE_API_KEY="your-api-key"
@@ -28,15 +28,28 @@ Get API key: https://aistudio.google.com/apikey
 Gemini can process YouTube URLs directly without downloading:
 
 ```python
-import google.generativeai as genai
+from google import genai
+from google.genai import types
+import os
 
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-model = genai.GenerativeModel("gemini-3-flash-preview")
+client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
-response = model.generate_content([
-    "Transcribe this video with timestamps. Note any on-screen text.",
-    {"video_url": "https://www.youtube.com/watch?v=VIDEO_ID"}
-])
+response = client.models.generate_content(
+    model="gemini-3-flash-preview",
+    contents=[
+        types.Content(
+            parts=[
+                types.Part.from_uri(
+                    file_uri="https://www.youtube.com/watch?v=VIDEO_ID",
+                    mime_type="video/mp4",
+                ),
+                types.Part.from_text(
+                    text="Transcribe this video with timestamps. Note any on-screen text."
+                ),
+            ]
+        )
+    ],
+)
 
 print(response.text)
 ```
@@ -44,28 +57,40 @@ print(response.text)
 ## Local File Processing
 
 ```python
-import google.generativeai as genai
+from google import genai
+from google.genai import types
+import os
 import time
 
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
 # Upload video
-video_file = genai.upload_file("video.mp4")
+video_file = client.files.upload(file="video.mp4")
 
 # Wait for processing
-while video_file.state.name == "PROCESSING":
+while video_file.state.value == "PROCESSING":
     time.sleep(2)
-    video_file = genai.get_file(video_file.name)
+    video_file = client.files.get(name=video_file.name)
 
-if video_file.state.name == "FAILED":
+if video_file.state.value == "FAILED":
     raise RuntimeError("Processing failed")
 
 # Generate content
-model = genai.GenerativeModel("gemini-3-flash-preview")
-response = model.generate_content([
-    "Analyze this video: describe the scenes, transcribe speech, note any text on screen.",
-    video_file
-])
+response = client.models.generate_content(
+    model="gemini-3-flash-preview",
+    contents=[
+        types.Content(
+            parts=[
+                types.Part.from_uri(
+                    file_uri=video_file.uri, mime_type=video_file.mime_type
+                ),
+                types.Part.from_text(
+                    text="Analyze this video: describe the scenes, transcribe speech, note any text on screen."
+                ),
+            ]
+        )
+    ],
+)
 
 print(response.text)
 ```

@@ -70,7 +70,7 @@ ln -s $(pwd)/video-understand-skills/skills/video-understand .claude/skills/vide
 ### For full video understanding (Gemini/OpenRouter)
 
 ```bash
-pip install google-generativeai  # For Gemini
+pip install google-genai         # For Gemini
 pip install openai               # For OpenRouter
 ```
 

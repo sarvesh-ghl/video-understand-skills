@@ -143,7 +143,7 @@ All providers return consistent JSON:
 
 **For full video understanding:**
 ```bash
-pip install google-generativeai  # Gemini
+pip install google-genai         # Gemini
 pip install openai               # OpenRouter
 ```
 

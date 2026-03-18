@@ -121,7 +121,7 @@ def main():
 
     packages = {
         "openai": ("OpenRouter / OpenAI Whisper", "pip install openai"),
-        "google.generativeai": ("Gemini", "pip install google-generativeai"),
+        "google.genai": ("Gemini", "pip install google-genai"),
         "groq": ("Groq Whisper", "pip install groq"),
         "assemblyai": ("AssemblyAI", "pip install assemblyai"),
         "deepgram": ("Deepgram", "pip install deepgram-sdk"),

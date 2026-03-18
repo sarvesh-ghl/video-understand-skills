@@ -5,7 +5,7 @@
 openai>=1.0.0          # For OpenRouter and OpenAI Whisper
 
 # Optional providers (install as needed)
-# google-generativeai  # For Gemini
+# google-genai         # For Gemini
 # groq                 # For Groq Whisper
 # assemblyai           # For AssemblyAI
 # deepgram-sdk         # For Deepgram

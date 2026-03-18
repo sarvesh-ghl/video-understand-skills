@@ -35,13 +35,24 @@ def detect_source_type(source: str) -> str:
 Gemini can process YouTube URLs without downloading:
 
 ```python
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
-model = genai.GenerativeModel("gemini-3-flash-preview")
-response = model.generate_content([
-    "Transcribe this video",
-    {"video_url": "https://www.youtube.com/watch?v=VIDEO_ID"}
-])
+client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+response = client.models.generate_content(
+    model="gemini-3-flash-preview",
+    contents=[
+        types.Content(
+            parts=[
+                types.Part.from_uri(
+                    file_uri="https://www.youtube.com/watch?v=VIDEO_ID",
+                    mime_type="video/mp4",
+                ),
+                types.Part.from_text(text="Transcribe this video"),
+            ]
+        )
+    ],
+)
 ```
 
 ### Downloading (Other Providers)
