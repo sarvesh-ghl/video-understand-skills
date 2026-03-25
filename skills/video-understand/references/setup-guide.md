@@ -60,6 +60,37 @@ Best for: Direct YouTube URL processing (no download needed)
 
 **Free tier:** Generous limits, direct YouTube support
 
+### Vertex AI (Service Account / ADC) - Recommended for Enterprise
+
+Best for: Production workloads, service accounts, GCP-native auth (no personal API key needed)
+
+**Option A: Service Account JSON key**
+
+1. Go to [GCP Console > IAM > Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts)
+2. Create or select a service account
+3. Grant the `Vertex AI User` role
+4. Create a JSON key and download it
+5. Set environment variables:
+
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"
+export GOOGLE_CLOUD_PROJECT="your-project-id"
+export GOOGLE_CLOUD_LOCATION="us-central1"  # optional, defaults to us-central1
+```
+
+**Option B: Application Default Credentials (gcloud CLI)**
+
+1. Install and configure the [gcloud CLI](https://cloud.google.com/sdk/docs/install)
+2. Run: `gcloud auth application-default login`
+3. Set project:
+
+```bash
+export GOOGLE_CLOUD_PROJECT="your-project-id"
+export GOOGLE_CLOUD_LOCATION="us-central1"  # optional
+```
+
+**Required APIs:** Enable the [Vertex AI API](https://console.cloud.google.com/apis/library/aiplatform.googleapis.com) in your GCP project.
+
 ### OpenRouter - Recommended for Simplicity
 
 Best for: Easy setup, access to multiple models

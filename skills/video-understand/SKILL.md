@@ -35,7 +35,7 @@ Automatically selects the best available provider:
 | Priority | Provider | Capability | Env Var | Default Model |
 |----------|----------|------------|---------|---------------|
 | 1 | Gemini | Full video | `GEMINI_API_KEY` | gemini-3-flash-preview |
-| 2 | Vertex AI | Full video | `GOOGLE_APPLICATION_CREDENTIALS` | gemini-3-flash-preview |
+| 2 | Vertex AI | Full video | `GOOGLE_APPLICATION_CREDENTIALS` + `GOOGLE_CLOUD_PROJECT` | gemini-3-flash-preview |
 | 3 | OpenRouter | Full video | `OPENROUTER_API_KEY` | google/gemini-3-flash-preview |
 | 4 | FFMPEG | Frames + ASR | None (requires ffmpeg + whisper) | scene |
 | 5 | OpenAI | ASR only | `OPENAI_API_KEY` | whisper-1 |

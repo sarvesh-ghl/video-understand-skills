@@ -6,12 +6,29 @@ Google's Gemini models provide native video understanding with both visual and a
 
 ```bash
 pip install google-genai
+```
+
+### Option 1: API Key (Google AI Studio)
+
+```bash
 export GEMINI_API_KEY="your-api-key"
 # OR
 export GOOGLE_API_KEY="your-api-key"
 ```
 
 Get API key: https://aistudio.google.com/apikey
+
+### Option 2: Service Account / ADC (Vertex AI)
+
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"
+export GOOGLE_CLOUD_PROJECT="your-project-id"
+export GOOGLE_CLOUD_LOCATION="us-central1"  # optional, defaults to us-central1
+```
+
+Or use Application Default Credentials via `gcloud auth application-default login`.
+
+When using Vertex AI, specify `--provider vertex` or the skill auto-selects it based on available credentials.
 
 ## Models
 

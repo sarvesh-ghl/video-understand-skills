@@ -630,17 +630,36 @@ def process_with_ffmpeg(
 
 # === Provider-specific processors ===
 
+def _create_genai_client(provider: str = "gemini"):
+    """Create a google.genai Client for either Gemini API or Vertex AI."""
+    from google import genai
+
+    if provider == "vertex":
+        project = (
+            os.environ.get("GOOGLE_CLOUD_PROJECT")
+            or os.environ.get("VERTEX_PROJECT")
+            or os.environ.get("GCLOUD_PROJECT")
+        )
+        location = os.environ.get("GOOGLE_CLOUD_LOCATION") or os.environ.get("VERTEX_LOCATION") or "us-central1"
+        if not project:
+            raise ValueError(
+                "Vertex AI requires a project ID. Set GOOGLE_CLOUD_PROJECT or VERTEX_PROJECT."
+            )
+        return genai.Client(vertexai=True, project=project, location=location)
+
+    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    return genai.Client(api_key=api_key)
+
+
 def process_with_gemini(source: str, prompt: str, model: str = None, is_url: bool = False, verbose: bool = True) -> dict:
     """Process video with Google Gemini using the google.genai SDK."""
-    from google import genai
     from google.genai import types
     import time
 
     model_name = model or DEFAULT_MODELS["gemini"]
     log(f"Processing with Gemini ({model_name})...", verbose)
 
-    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    client = genai.Client(api_key=api_key)
+    client = _create_genai_client("gemini")
 
     if is_url and is_youtube_url(source):
         log("Sending YouTube URL directly to Gemini...", verbose)
@@ -682,6 +701,68 @@ def process_with_gemini(source: str, prompt: str, model: str = None, is_url: boo
 
     return {
         "provider": "gemini",
+        "model": model_name,
+        "capability": "full_video",
+        "response": response.text,
+    }
+
+
+def process_with_vertex(source: str, prompt: str, model: str = None, is_url: bool = False, verbose: bool = True) -> dict:
+    """Process video with Vertex AI using service account / ADC credentials."""
+    from google.genai import types
+    import time
+
+    model_name = model or DEFAULT_MODELS["vertex"]
+    project = (
+        os.environ.get("GOOGLE_CLOUD_PROJECT")
+        or os.environ.get("VERTEX_PROJECT")
+        or os.environ.get("GCLOUD_PROJECT")
+    )
+    location = os.environ.get("GOOGLE_CLOUD_LOCATION") or os.environ.get("VERTEX_LOCATION") or "us-central1"
+    log(f"Processing with Vertex AI ({model_name}, project={project}, location={location})...", verbose)
+
+    client = _create_genai_client("vertex")
+
+    if is_url and is_youtube_url(source):
+        log("Sending YouTube URL directly to Vertex AI...", verbose)
+        response = client.models.generate_content(
+            model=model_name,
+            contents=[
+                types.Content(
+                    parts=[
+                        types.Part.from_uri(file_uri=source, mime_type="video/mp4"),
+                        types.Part.from_text(text=prompt),
+                    ]
+                )
+            ],
+        )
+    else:
+        log("Uploading video to Vertex AI...", verbose)
+        video_file = client.files.upload(file=source)
+
+        while video_file.state.value == "PROCESSING":
+            log("Waiting for Vertex AI to process video...", verbose)
+            time.sleep(2)
+            video_file = client.files.get(name=video_file.name)
+
+        if video_file.state.value == "FAILED":
+            raise RuntimeError(f"Video processing failed: {video_file.state.value}")
+
+        log("Generating response...", verbose)
+        response = client.models.generate_content(
+            model=model_name,
+            contents=[
+                types.Content(
+                    parts=[
+                        types.Part.from_uri(file_uri=video_file.uri, mime_type=video_file.mime_type),
+                        types.Part.from_text(text=prompt),
+                    ]
+                )
+            ],
+        )
+
+    return {
+        "provider": "vertex",
         "model": model_name,
         "capability": "full_video",
         "response": response.text,
@@ -1112,7 +1193,14 @@ def process_video(
                     result.update(process_with_openrouter(video_path, prompt, model=model, verbose=verbose))
 
         elif provider == "vertex":
-            raise NotImplementedError("Vertex AI support coming soon. Use GEMINI_API_KEY instead.")
+            if is_youtube:
+                result.update(process_with_vertex(source, prompt, model=model, is_url=True, verbose=verbose))
+            elif is_local:
+                result.update(process_with_vertex(source, prompt, model=model, is_url=False, verbose=verbose))
+            else:
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    video_path = download_video(source, tmpdir, verbose=verbose)
+                    result.update(process_with_vertex(video_path, prompt, model=model, is_url=False, verbose=verbose))
 
         elif provider == "ffmpeg":
             # Free offline approach: extract frames + transcribe with local whisper
@@ -1212,7 +1300,7 @@ Examples:
 
     parser.add_argument("source", nargs="?", help="YouTube URL, video URL, or local file path")
     parser.add_argument("-p", "--prompt", help="Custom prompt for video understanding")
-    parser.add_argument("--provider", help="Force specific provider (gemini, openrouter, openai, groq, assemblyai, deepgram, local)")
+    parser.add_argument("--provider", help="Force specific provider (gemini, vertex, openrouter, ffmpeg, openai, groq, assemblyai, deepgram, local)")
     parser.add_argument("-m", "--model", help="Force specific model (use --list-models to see options)")
     parser.add_argument("--asr-only", action="store_true", help="Force ASR-only mode (no visual analysis)")
     parser.add_argument("-o", "--output", help="Output JSON file (default: stdout)")

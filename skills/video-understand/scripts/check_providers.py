@@ -27,13 +27,27 @@ def check_command(cmd):
 
 
 def check_vertex_ai():
-    """Check if Vertex AI credentials are configured."""
+    """Check if Vertex AI credentials and project are configured."""
+    has_creds = False
+
     creds_file = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "")
     if creds_file and os.path.isfile(creds_file):
-        return True
-    # Also check for ADC (Application Default Credentials)
-    adc_path = os.path.expanduser("~/.config/gcloud/application_default_credentials.json")
-    return os.path.isfile(adc_path)
+        has_creds = True
+
+    if not has_creds:
+        adc_path = os.path.expanduser("~/.config/gcloud/application_default_credentials.json")
+        if os.path.isfile(adc_path):
+            has_creds = True
+
+    if not has_creds:
+        return False
+
+    project = (
+        os.environ.get("GOOGLE_CLOUD_PROJECT")
+        or os.environ.get("VERTEX_PROJECT")
+        or os.environ.get("GCLOUD_PROJECT")
+    )
+    return bool(project)
 
 
 def check_local_whisper():
@@ -80,9 +94,15 @@ def get_available_providers():
         }
         env_vars_used["gemini"] = gemini_key
 
-    # 2. Vertex AI
+    # 2. Vertex AI (service account / ADC)
     if check_vertex_ai():
         providers["video_understanding"].append("vertex")
+        location = os.environ.get("GOOGLE_CLOUD_LOCATION") or os.environ.get("VERTEX_LOCATION") or "us-central1"
+        project = (
+            os.environ.get("GOOGLE_CLOUD_PROJECT")
+            or os.environ.get("VERTEX_PROJECT")
+            or os.environ.get("GCLOUD_PROJECT")
+        )
         capabilities["vertex"] = {
             "visual": True,
             "audio": True,
@@ -90,9 +110,11 @@ def get_available_providers():
             "local_files": True,
             "max_video_length": "1 hour",
             "models": ["gemini-3-flash-preview", "gemini-3-pro-preview", "gemini-2.5-flash"],
-            "note": "Enterprise Google Cloud"
+            "project": project,
+            "location": location,
+            "note": "Enterprise Google Cloud (service account / ADC)"
         }
-        env_vars_used["vertex"] = "GOOGLE_APPLICATION_CREDENTIALS"
+        env_vars_used["vertex"] = "GOOGLE_APPLICATION_CREDENTIALS + GOOGLE_CLOUD_PROJECT"
 
     # 3. OpenRouter (access to Gemini and other models)
     openrouter_key = check_env_var("OPENROUTER_API_KEY")
